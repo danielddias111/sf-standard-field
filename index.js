@@ -159,14 +159,16 @@ const getAllStandardFields = () => {
     for (let i=0;i<referencesArray.length;i++){
 			for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
 				if(lineContainsObjReference(splitedClass[lineCount], referencesArray[i])){
-					console.log('This field -' + referencesArray[i] + '- is used in line -' + lineCount + '- !!')
-					console.log(splitedClass[lineCount])
-					console.log('###')
+					//console.log('This field -' + referencesArray[i] + '- is used')
+					//console.log(splitedClass[lineCount])
+					//console.log('###')
 					let standardArray = containsStandardField(splitedClass[lineCount], referencesArray[i])
 					if(standardArray.length>0){
 						if(standardFieldsMap.get(object)){
 							let tempArray = standardFieldsMap.get(object)
 							tempArray = tempArray.concat(standardArray)
+							//removing duplicates
+							tempArray = [...new Set(tempArray)];
 							standardFieldsMap.set(object, tempArray)
 						}
 						else {
@@ -186,9 +188,32 @@ const getAllStandardFields = () => {
 const containsStandardField = (line, objReference) => {
 	let standardArray = []
 	let spaceSplit = line.split(' ');
+	//check for a.industry
 	for(let i=0; i<spaceSplit.length; i++){
 		if(spaceSplit[i].startsWith(objReference+'.') && !spaceSplit[i].endsWith('__c') ){
 			standardArray.push(spaceSplit[i].split('.')[1])
+		}
+	}
+	//lead a = new lead(industry='auto', cleanstatus='')
+	//check for new object instances
+	if((line.includes(' '+objReference) || line.includes(objReference+'.')) && (line.includes('=new') || line.includes('= new'))){
+		let leftOfEquals = ''
+		if(line.split('=').length > 2){
+			for(let i=1; i<line.split('=').length-1; i++){
+				leftOfEquals = line.split('=')[i]
+				if(i===1){
+					if(!leftOfEquals.split('(')[1].endsWith('__c')){
+						standardArray.push(leftOfEquals.split('(')[1])
+					}
+				}
+				else {
+					if(!leftOfEquals.split(',')[1].endsWith('__c')){
+						// removing spaces so that we can identify duplicates
+						standardArray.push(leftOfEquals.split(',')[1].replace(/ +/g, ''))
+					}
+				}
+		}
+		
 		}
 	}
 	return standardArray;
