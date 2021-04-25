@@ -1,17 +1,18 @@
+//To retrive SOQL metadata
+const { parseQuery } = require('soql-parser-js');
 //standardSFObjects contains the objects to check
 let standardSFObjects		= ['Lead','Account']
 //Class splited by ; without comments
 let splitedClass
 //Objects and Standard fields
 let standardFieldsMap	= new Map()
-//field to analyse
-let fields
+//Map containing standard fields and objects in SOQL
+let soqlMap = new Map()
+
 const meta = require('./metadata.js')
-console.log('#########')
-console.log('Apex class to analyse:')
-console.log(meta.apexClass)
 let symbolObj	= JSON.parse(meta.symbolTable)
-console.log('#########')
+//Fields to analyse
+let fieldsToAnalyse			= new Map();
 
 /**
  * 
@@ -59,55 +60,71 @@ const removeComments = (classContent) => {
 /**
  * 
  * @param {*} classContent 
- * @description this method returns all fields inside the class that might contains standard SF fields 
+ * @description this method returns all fields and object instances inside the class that might contains standard SF fields 
  */
 const getFieldsToAnalyse = (metadataContent) => {
-	let fieldsToAnalyse			= new Map();
-	let tempProps
-	let tempVars
+	let tempVar 
 	for(let i=0; i<metadataContent.records.length; i++){
-		// check properties - class variables
-		for(let propsCount=0; propsCount < metadataContent.records[i].SymbolTable.properties.length; propsCount++){
-			tempProps = metadataContent.records[i].SymbolTable.properties
-			// check if type contains object name
-			for(let standardFieldsCount = 0; standardFieldsCount < standardSFObjects.length; standardFieldsCount++){
-				if(containsObj(tempProps[propsCount].type, 
-					standardSFObjects[standardFieldsCount])){
-						let tempArray = []
-						if(fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])){
-							tempArray = fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])
-							tempArray.push(tempProps[propsCount].name.toLowerCase())
-							fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
-						}
-						else {
-							tempArray.push(tempProps[propsCount].name.toLowerCase())
-							fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
-						}
-				}
-			}
-		}
-		// check variables - methods variables
-		for(let varCount=0; varCount < metadataContent.records[i].SymbolTable.variables.length; varCount++){
-			tempVars	= metadataContent.records[i].SymbolTable.variables
-			// check if type contains object name 
-			for(let standardFieldsCount = 0; standardFieldsCount < standardSFObjects.length; standardFieldsCount++){
-				if(containsObj(tempVars[varCount].type, 
-						standardSFObjects[standardFieldsCount])){
+		tempVar = metadataContent.records[i]
+		//Symbol table return properties and variables, we need to analysed both
+		analyseProps(tempVar)
+		analyseVars(tempVar)
+	}
+}
+
+/**
+ *  @description analyse the global variables of Symbol Table
+ * @param {*} tempVar 
+ */
+const analyseProps = (tempVar) => {
+	let tempProps
+	// check properties - class variables
+	for(let propsCount=0; propsCount < tempVar.SymbolTable.properties.length; propsCount++){
+		tempProps = tempVar.SymbolTable.properties
+		// check if type contains object name
+		for(let standardFieldsCount = 0; standardFieldsCount < standardSFObjects.length; standardFieldsCount++){
+			if(containsObj(tempProps[propsCount].type, 
+				standardSFObjects[standardFieldsCount])){
 					let tempArray = []
 					if(fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])){
 						tempArray = fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])
-						tempArray.push(tempVars[varCount].name.toLowerCase())
+						tempArray.push(tempProps[propsCount].name.toLowerCase())
 						fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
 					}
 					else {
-						tempArray.push(tempVars[varCount].name.toLowerCase())
+						tempArray.push(tempProps[propsCount].name.toLowerCase())
 						fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
 					}
+			}
+		}
+	}
+}
+/**
+ *  @description analyse the methods variables of Symbol Table
+ * @param {*} tempVar 
+ */
+const analyseVars = (tempVar) => {
+	let tempVars
+// check variables - methods variables
+	for(let varCount=0; varCount < tempVar.SymbolTable.variables.length; varCount++){
+		tempVars	= tempVar.SymbolTable.variables
+		// check if type contains object name 
+		for(let standardFieldsCount = 0; standardFieldsCount < standardSFObjects.length; standardFieldsCount++){
+			if(containsObj(tempVars[varCount].type, 
+					standardSFObjects[standardFieldsCount])){
+				let tempArray = []
+				if(fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])){
+					tempArray = fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])
+					tempArray.push(tempVars[varCount].name.toLowerCase())
+					fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
+				}
+				else {
+					tempArray.push(tempVars[varCount].name.toLowerCase())
+					fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
 				}
 			}
 		}
 	}
-	return fieldsToAnalyse;
 }
 
 /**
@@ -143,39 +160,36 @@ const containsObj = (type, obj) => {
  * @returns 
  */
 const lineContainsObjReference = (line, standardField) => {
-	if(line.includes(' '+standardField) && (line.includes(standardField + '.') || line.includes(standardField + ' ')) ){
+	if((line.includes(' '+standardField) || line.includes('='+standardField)) && (line.includes(standardField + '.') || line.includes(standardField + ' ') || line.includes(standardField + '[')) ){
 		return true
 	}
 	return false
 }
 
 const getAllStandardFields = () => {
-	let line
-	let field
 	let referencesArray
-
-	for (let object of fields.keys()){
-		referencesArray = fields.get(object)
+	for (let object of fieldsToAnalyse.keys()){
+		// referencesArray contains the array of instances that an object have
+		// e.g. {'Account': [accFieldA , accFieldB]} 
+		referencesArray = fieldsToAnalyse.get(object)
     for (let i=0;i<referencesArray.length;i++){
 			for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
 				if(lineContainsObjReference(splitedClass[lineCount], referencesArray[i])){
-					//console.log('This field -' + referencesArray[i] + '- is used')
-					//console.log(splitedClass[lineCount])
-					//console.log('###')
 					let standardArray = containsStandardField(splitedClass[lineCount], referencesArray[i])
 					if(standardArray.length>0){
 						if(standardFieldsMap.get(object)){
-							let tempArray = standardFieldsMap.get(object)
-							tempArray = tempArray.concat(standardArray)
+							//concating the 2 arrays
+							tempArray = standardFieldsMap.get(object).concat(standardArray)
 							//removing duplicates
 							tempArray = [...new Set(tempArray)];
 							standardFieldsMap.set(object, tempArray)
 						}
 						else {
-							let tempArray = standardArray
-							standardFieldsMap.set(object, tempArray)
+							standardFieldsMap.set(object, standardArray)
 						}
 					}
+					//SOQL check
+					checkStandardFieldSOQL(splitedClass[lineCount])
 				}
 			}
 		}
@@ -183,19 +197,20 @@ const getAllStandardFields = () => {
 }		
 
 /**
- * @description check if contains standard field
+ * @description check if line contains standard field, Account acc= new Account(Industry='') or acc.Industry
  */
 const containsStandardField = (line, objReference) => {
 	let standardArray = []
 	let spaceSplit = line.split(' ');
 	//check for a.industry
 	for(let i=0; i<spaceSplit.length; i++){
-		if(spaceSplit[i].startsWith(objReference+'.') && !spaceSplit[i].endsWith('__c') ){
+		if((spaceSplit[i].startsWith('='+objReference) || spaceSplit[i].startsWith(objReference+'.') || spaceSplit[i].startsWith(objReference+'[')) && !spaceSplit[i].endsWith('__c') ){
 			standardArray.push(spaceSplit[i].split('.')[1])
 		}
 	}
 	//lead a = new lead(industry='auto', cleanstatus='')
 	//check for new object instances
+	// line only contains one space, so if they have '=    new' becomes '= new'
 	if((line.includes(' '+objReference) || line.includes(objReference+'.')) && (line.includes('=new') || line.includes('= new'))){
 		let leftOfEquals = ''
 		if(line.split('=').length > 2){
@@ -212,18 +227,47 @@ const containsStandardField = (line, objReference) => {
 						standardArray.push(leftOfEquals.split(',')[1].replace(/ +/g, ''))
 					}
 				}
-		}
-		
+			}
 		}
 	}
+
 	return standardArray;
+}
+
+
+const checkStandardFieldSOQL = (line) => {
+	//check for SOQL
+	if(line.includes('[') && line.includes('select') && line.includes(']')){
+		let soqlQuery	= line.split('[')[1].split(']')[0]
+		const query = parseQuery(soqlQuery);
+		return getStandardFieldsInSOQL(query)
+	}
+}
+
+const getStandardFieldsInSOQL = (parsedQuery) => {
+	for(let i=0; i<parsedQuery.fields.length; i++){
+		if(parsedQuery.fields[i].type === 'Field' && !parsedQuery.fields[i].field.endsWith('__c')){
+			let object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
+			if(soqlMap.get(object)){
+				soqlMap.get(object).push(parsedQuery.fields[i].field)
+			}
+			else {
+				let tempArray = [parsedQuery.fields[i].field]
+				soqlMap.set(object, tempArray)
+			}	
+		}
+		else if(parsedQuery.fields[i].type === 'FieldSubquery'){
+			getStandardFieldsInSOQL(parsedQuery.fields[i].subquery)
+		}
+	}
 }
 
 let classWithoutComments	=	removeComments(meta.apexClass)
 splitedClass = classWithoutComments.split(';')
-console.log(splitedClass)
-fields	= getFieldsToAnalyse(symbolObj);
-console.log('Fields to analyse',fields)
+getFieldsToAnalyse(symbolObj);
+console.log('Fields to analyse',fieldsToAnalyse)
 getAllStandardFields()
 console.log('standard Fields used:')
 console.log(standardFieldsMap)
+console.log('fields inside SOQL used:')
+console.log(soqlMap)
