@@ -1,7 +1,8 @@
+const fetch = require('node-fetch');
 //To retrive SOQL metadata
 const { parseQuery } = require('soql-parser-js');
 //standardSFObjects contains the objects to check
-let standardSFObjects		= ['Lead','Account']
+let standardSFObjects		= ['Lead','Account','Opportunity']
 //Class splited by ; without comments
 let splitedClass
 //Objects and Standard fields
@@ -13,6 +14,9 @@ const meta = require('./metadata.js')
 let symbolObj	= JSON.parse(meta.symbolTable)
 //Fields to analyse
 let fieldsToAnalyse			= new Map();
+
+let token = 'Bearer 00D09000002VRMG!ARsAQNDJpSlQxoQ4hhGQVL4hI1MFg.HrINTIHkd3XQaDXNCMYLZIBT1VVN1geGNOCFYRNWthMlSPPXgorOOdPcUiKcHXvlJC'
+let url = 'https://eu40.salesforce.com/services/data/v50.0/sobjects/'
 
 /**
  * 
@@ -167,34 +171,60 @@ const lineContainsObjReference = (line, standardField) => {
 }
 
 const getAllStandardFields = () => {
-	let referencesArray
-	for (let object of fieldsToAnalyse.keys()){
-		// referencesArray contains the array of instances that an object have
-		// e.g. {'Account': [accFieldA , accFieldB]} 
-		referencesArray = fieldsToAnalyse.get(object)
-    for (let i=0;i<referencesArray.length;i++){
-			for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
-				if(lineContainsObjReference(splitedClass[lineCount], referencesArray[i])){
-					let standardArray = containsStandardField(splitedClass[lineCount], referencesArray[i])
-					if(standardArray.length>0){
-						if(standardFieldsMap.get(object)){
-							//concating the 2 arrays
-							tempArray = standardFieldsMap.get(object).concat(standardArray)
-							//removing duplicates
-							tempArray = [...new Set(tempArray)];
-							standardFieldsMap.set(object, tempArray)
+	return new Promise(async (resolve, reject) => {
+		let referencesArray
+		for (let object of fieldsToAnalyse.keys()){
+			// referencesArray contains the array of instances that an object have
+			// e.g. {'Account': [accFieldA , accFieldB]} 
+			referencesArray = fieldsToAnalyse.get(object)
+			for (let i=0;i<referencesArray.length;i++){
+				for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
+					if(lineContainsObjReference(splitedClass[lineCount], referencesArray[i])){
+						let standardArray = containsStandardField(splitedClass[lineCount], referencesArray[i])
+						if(standardArray.length>0){
+							if(standardFieldsMap.get(object)){
+								//concating the 2 arrays
+								tempArray = standardFieldsMap.get(object).concat(standardArray)
+								//removing duplicates
+								tempArray = [...new Set(tempArray)];
+								standardFieldsMap.set(object, tempArray)
+							}
+							else {
+								standardFieldsMap.set(object, standardArray)
+							}
 						}
-						else {
-							standardFieldsMap.set(object, standardArray)
-						}
+						//SOQL check
+						await checkStandardFieldSOQL(splitedClass[lineCount])
+
+						
 					}
-					//SOQL check
-					checkStandardFieldSOQL(splitedClass[lineCount])
 				}
 			}
 		}
-  }
+		//Analyse all lines for [select id, industry from lead][0].industry
+		for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
+			if(containsQuery(splitedClass[lineCount]) && !splitedClass[lineCount].replace(/ +/g, '').endsWith('__c') && !splitedClass[lineCount].replace(/ +/g, '').endsWith(']')){
+				let obj = splitedClass[lineCount].split('from')[1].split(' ')[1].toLowerCase()
+				if(obj.includes(']')){
+					obj = obj.split(']')[0]
+				}
+				let field = splitedClass[lineCount].split('.')[splitedClass[lineCount].split('.').length-1]
+				if(standardFieldsMap.get(obj)){
+					standardFieldsMap.get(obj).push(field)
+				}
+				else {
+					standardFieldsMap.set(obj, [field])
+				}
+			}
+		}
+		resolve()
+	})
+	
 }		
+
+const containsQuery = (line) => {
+	return line.includes('[') && line.includes(']') && line.includes('select')
+}
 
 /**
  * @description check if line contains standard field, Account acc= new Account(Industry='') or acc.Industry
@@ -240,11 +270,11 @@ const checkStandardFieldSOQL = (line) => {
 	if(line.includes('[') && line.includes('select') && line.includes(']')){
 		let soqlQuery	= line.split('[')[1].split(']')[0]
 		const query = parseQuery(soqlQuery);
-		return getStandardFieldsInSOQL(query)
+		return getStandardFieldsInSOQL(query, false)
 	}
 }
 
-const getStandardFieldsInSOQL = (parsedQuery) => {
+const getStandardFieldsInSOQL = async (parsedQuery, isInnerQuery) => {
 	for(let i=0; i<parsedQuery.fields.length; i++){
 		if(parsedQuery.fields[i].type === 'Field' && !parsedQuery.fields[i].field.endsWith('__c')){
 			let object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
@@ -257,9 +287,86 @@ const getStandardFieldsInSOQL = (parsedQuery) => {
 			}	
 		}
 		else if(parsedQuery.fields[i].type === 'FieldSubquery'){
-			getStandardFieldsInSOQL(parsedQuery.fields[i].subquery)
+			getStandardFieldsInSOQL(parsedQuery.fields[i].subquery, true)
+		}
+		// FieldRelationship, we need to check the parents to map to the correct object
+		else if(parsedQuery.fields[i].type === 'FieldRelationship' && !parsedQuery.fields[i].field.endsWith('__c')){
+			let object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
+			//missing FieldRelationship in inner queries as name is different
+			if(isInnerQuery){
+				let allObjs = await getObjNameFromPluralName(object)
+				for(let objs=0; objs<allObjs.length; objs++){
+					if(object === allObjs[objs].labelPlural){
+						object = allObjs[objs].label;
+						break
+					}
+				}
+			}
+			let allObjFields = await getDescribe(object)
+			//we can go up more than 1 time, so we need to iterate all parents fields
+			for(let relationshipsCount = 0; relationshipsCount<parsedQuery.fields[i].relationships.length; relationshipsCount++){
+				if(allObjFields){
+					for(let x=0; x<allObjFields.length; x++){
+						//if its does not have  relationshipName means it is not a lookup
+						if(allObjFields[x].relationshipName){
+							if(parsedQuery.fields[i].relationships[relationshipsCount]===allObjFields[x].relationshipName.toLowerCase()){
+								if(relationshipsCount+1 === parsedQuery.fields[i].relationships.length){
+									if(soqlMap.get(allObjFields[x].referenceTo[0])){
+										soqlMap.get(allObjFields[x].referenceTo[0]).push(parsedQuery.fields[i].field)
+									}
+									else {
+										soqlMap.set(allObjFields[x].referenceTo[0],[parsedQuery.fields[i].field])
+										//console.log(soqlMap)
+									}
+								}
+								else {
+									allObjFields = await getDescribe(allObjFields[x].referenceTo[0])
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+			
 		}
 	}
+}
+
+const getDescribe = (obj) => {
+	return new Promise((resolve, reject) => {
+		url = url+obj+'/describe'
+		fetch(url, {
+			headers: {
+				"Content-Type":"application/json",
+				"Authorization": token
+			}
+		})
+		.then(response => {
+			response.json().then(data => {
+				//console.log(data.fields)
+				resolve(data.fields)
+			})
+			
+		})
+	})
+}
+
+const getObjNameFromPluralName = (pluralName) => {
+	return new Promise((resolve, reject) => {
+		fetch(url, {
+			headers: {
+				"Content-Type":"application/json",
+				"Authorization": token
+			}
+		})
+		.then(response => {
+			response.json().then(data => {
+				resolve(data.sobjects)
+			})
+			
+		})
+	})
 }
 
 let classWithoutComments	=	removeComments(meta.apexClass)
@@ -267,7 +374,9 @@ splitedClass = classWithoutComments.split(';')
 getFieldsToAnalyse(symbolObj);
 console.log('Fields to analyse',fieldsToAnalyse)
 getAllStandardFields()
-console.log('standard Fields used:')
-console.log(standardFieldsMap)
-console.log('fields inside SOQL used:')
-console.log(soqlMap)
+.then(() => {
+	console.log('standard Fields used:')
+	console.log(standardFieldsMap)
+	console.log('fields inside SOQL used:')
+	console.log(soqlMap)
+})
