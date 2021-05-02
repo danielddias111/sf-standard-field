@@ -308,7 +308,7 @@ const checkStandardFieldSOQL = (line) => {
 	//check for SOQL
 	if(line.includes('[') && line.includes('select') && line.includes(']')){
 		let soqlQuery	= line.split('[')[1].split(']')[0]
-		const query = parseQuery(soqlQuery);
+		const query = parseQuery(soqlQuery,{allowApexBindVariables:true});
 		return getStandardFieldsInSOQL(query, false)
 	}
 }
