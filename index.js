@@ -1,9 +1,9 @@
 const getStandardFields = require('./getStandardFields');
 
 const entryPoint = {
-	classId : '01p3h00000Fm3eW',
-	token:'00D3h000005XLUw!AQkAQGHsKJNFfOXwI3kkS9r0Wj6mzzlFUbYFIs0e2orxNCPhqmsfFP0TrgwuNZyRBYc7.2mY3TxSyY4I82mu6dttQhgIx.Cu',
-	url:'https://brave-raccoon-mm7crl-dev-ed.my.salesforce.com'
+	classId : '01p0900000E5uVVAAZ',
+	token:'00D09000002VRMG!ARsAQLwHAGLDZt2B3E.rEUe6Wpfo8js5g6NApvjz3zR.sAAOkyoaaOpwgZ7IRn_tFVhaoNmXKoIBnh.W2QEjHdfXcD_BbTbq',
+	url:'https://eu40.salesforce.com/'
 }
 
 getStandardFields(entryPoint);
