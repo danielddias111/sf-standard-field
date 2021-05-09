@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 const { parseQuery } = require('soql-parser-js');
 const strip = require('strip-comments');
 //standardSFObjects contains the objects to check
-let standardSFObjects		= ['Lead','Account','Contact']
+let standardSFObjects		= ['Lead','Account','Contact','Contract','Product2']
 let soqlMap = new Map();
 let url;
 let token;
@@ -229,14 +229,20 @@ const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 				for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
 					tempMap = await checkStandardField(splitedClass[lineCount], referencesArray[i], object)
 					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+
+					tempMap  = checkBadPractices(splitedClass[lineCount])
+					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
 				}
 			}
 		}
-		//Analyse all lines for [select id, industry from lead][0].industry
+		//sObject Field
 		for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
-			tempMap  = checkBadPractices(splitedClass[lineCount])
-			standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+			tempMap  = check_sObjectField(splitedClass[lineCount])
+			if(tempMap){
+				standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+			}
 		}
+
 		resolve(standardFieldsMap);
 	})
 	
@@ -258,6 +264,23 @@ const checkBadPractices = (line) => {
 		}
 	}
 	return standardFieldsMap
+}
+
+const check_sObjectField = (line) => {
+	let fieldMap = new Map()
+	let obj
+	let field
+	let tempSet = []
+	if(line.includes('sobjectfield')){
+		if(!line.endsWith('__c') && !line.endsWith('__c ')){
+			obj = line.split('=')[1].split('.')[0].replace(/ +/g, '');
+			field = line.split('=')[1].split('.')[1].replace(/ +/g, '');
+			tempSet.push(field)
+			fieldMap.set(obj, tempSet)
+			return fieldMap
+		}
+	}
+	return null
 }
 
 // check in SOQL and basic use
@@ -416,9 +439,9 @@ const getParentObjectName = async (field, allObjFieldsInput) => {
 					}
 				}
 			}
-		}
-		return soqlMap
+		}	
 	}
+	return soqlMap
 }
 
 const getNameFromPluralName = async (object) => {
