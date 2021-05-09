@@ -351,22 +351,24 @@ const checkStandardFieldSOQL = (line, object) => {
 
 const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 	return new Promise(async (resolve) => {
-		let allObjs
+		
 		let object
 		for(let i=0; i<parsedQuery.fields.length; i++){
 			if(parsedQuery.fields[i].type === 'Field' && !parsedQuery.fields[i].field.endsWith('__c')){
 				let object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
-				if(soqlMap.get(object)){
-					soqlMap.get(object).push(parsedQuery.fields[i].field)
+				if(soqlMap.get(mainObject.toLowerCase())){
+					soqlMap.get(mainObject.toLowerCase()).push(parsedQuery.fields[i].field)
 				}
 				else {
 					let tempArray = [parsedQuery.fields[i].field]
-					soqlMap.set(object, tempArray)
+					soqlMap.set(mainObject.toLowerCase(), tempArray)
 				}	
 			}
 			else if(parsedQuery.fields[i].type === 'FieldSubquery'){
 				let tempMap 
-				tempMap = await getStandardFieldsInSOQL(parsedQuery.fields[i].subquery, true)
+				object = parsedQuery.fields[i].subquery.relationshipName
+				object = await getNameFromPluralName(object)
+				tempMap = await getStandardFieldsInSOQL(parsedQuery.fields[i].subquery, true, object)
 				soqlMap = joinMaps(soqlMap, tempMap) 
 			}
 			// FieldRelationship, we need to check the parents to map to the correct object
@@ -374,60 +376,86 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 				object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
 				//missing FieldRelationship in inner queries as name is different
 				if(isInnerQuery){
-					allObjs = await getObjNameFromPluralName(object)
-					for(let objs=0; objs<allObjs.length; objs++){
-						if(object === allObjs[objs].labelPlural.toLowerCase()){
-							object = allObjs[objs].label;
-							break
-						}
-					}
+					object = await getNameFromPluralName(object)
 				}
 				let allObjFields = await getDescribe(object)
 				//we can go up more than 1 time, so we need to iterate all parents fields
-				for(let relationshipsCount = 0; relationshipsCount<parsedQuery.fields[i].relationships.length; relationshipsCount++){
-					if(allObjFields){
-						for(let x=0; x<allObjFields.length; x++){
-							//if its does not have  relationshipName means it is not a lookup
-							if(allObjFields[x].relationshipName){
-								if(parsedQuery.fields[i].relationships[relationshipsCount]===allObjFields[x].relationshipName.toLowerCase()){
-									if(relationshipsCount+1 === parsedQuery.fields[i].relationships.length){
-										if(soqlMap.get(allObjFields[x].referenceTo[0].toLowerCase())){
-											soqlMap.get(allObjFields[x].referenceTo[0].toLowerCase()).push(parsedQuery.fields[i].field)
-										}
-										else {
-											soqlMap.set(allObjFields[x].referenceTo[0].toLowerCase(),[parsedQuery.fields[i].field])
-											//console.log(soqlMap)
-										}
-									}
-									else {
-										allObjFields = await getDescribe(allObjFields[x].referenceTo[0])
-										break
-									}
-								}
-							}
-						}
-					}
-				}
-				
+				if(parsedQuery.fields[i].relationships){
+					tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)
+					soqlMap = joinMaps(soqlMap, tempMap)
+				}	 
 			}
 		}
 		// check where clause
 		if(parsedQuery.where){
-			let tempMap = getFieldsInWhereClause(parsedQuery, mainObject.toLowerCase());
+			let tempMap = await getFieldsInWhereClause(parsedQuery, mainObject.toLowerCase());
 			soqlMap = joinMaps(soqlMap, tempMap)
 		}
 		resolve(soqlMap);
 	})
 }
 
-const getFieldsInWhereClause = (parsedQuery, object) => {
+const getParentObjectName = async (field, allObjFieldsInput) => {
+	let allObjFields = allObjFieldsInput
+	let tempSet = []
+	let soqlMap = new Map()
+	for(let relationshipsCount = 0; relationshipsCount<field.relationships.length; relationshipsCount++){
+		if(allObjFields){
+			for(let x=0; x<allObjFields.length; x++){
+				//if its does not have  relationshipName means it is not a lookup
+				if(allObjFields[x].relationshipName){
+					if(field.relationships[relationshipsCount]===allObjFields[x].relationshipName.toLowerCase()){
+						if(relationshipsCount+1 === field.relationships.length){
+							tempSet.push(field.field)
+							soqlMap.set(allObjFields[x].referenceTo[0].toLowerCase(),tempSet)	
+						}
+						else {
+							allObjFields = await getDescribe(allObjFields[x].referenceTo[0])
+							break
+						}
+					}
+				}
+			}
+		}
+		return soqlMap
+	}
+}
+
+const getNameFromPluralName = async (object) => {
+	let singularName
+	let allObjs
+	allObjs = await getObjNameFromPluralName(object)
+		for(let objs=0; objs<allObjs.length; objs++){
+			if(object === allObjs[objs].labelPlural.toLowerCase()){
+				singularName = allObjs[objs].label;
+					break
+			}
+		}
+	return singularName
+}
+				
+
+const getFieldsInWhereClause = async (parsedQuery, object) => {
 	let soqlMap = new Map()
 	let tempMap = new Map()
 	let tempSet = []
-	
+	let allObjFields
+	let fieldObj = {
+		field: '',
+		relationships: []
+	}
 	if(!parsedQuery.where.left.field.endsWith('__c')){
-		tempSet.push(parsedQuery.where.left.field)
-		soqlMap.set(object, tempSet)
+		if(parsedQuery.where.left.field.includes('.')){
+
+			fieldObj.field = parsedQuery.where.left.field.split('.')[parsedQuery.where.left.field.split('.').length-1]
+			fieldObj.relationships = parsedQuery.where.left.field.split('.').splice(0,1)
+			allObjFields = await getDescribe(object)
+			soqlMap = await getParentObjectName(fieldObj, allObjFields)
+		}
+		else {
+			tempSet.push(parsedQuery.where.left.field)
+			soqlMap.set(object, tempSet)
+		}
 		if(parsedQuery.where.right){
 			tempMap = checkRecursiveRightElement(parsedQuery.where.right, object)
 			soqlMap = joinMaps(soqlMap, tempMap)
@@ -456,9 +484,7 @@ const checkRecursiveRightElement = (parsedQueryRightElement, object) => {
 
 const getDescribe = (obj) => {
 	return new Promise((resolve, reject) => {
-        url = `${url}/services/data/v50.0/sobjects/${obj}/describe`;
-       
-		fetch(url, {
+		fetch(`${url}/services/data/v50.0/sobjects/${obj}/describe`, {
 			headers: {
 				"Content-Type":"application/json",
 				"Authorization": `Bearer ${token}`
@@ -476,8 +502,7 @@ const getDescribe = (obj) => {
 
 const getObjNameFromPluralName = (pluralName) => {
 	return new Promise((resolve, reject) => {
-		url+'services/data/v50.0/sobjects/'
-		fetch(url+'services/data/v50.0/sobjects/', {
+		fetch(url+'/services/data/v50.0/sobjects/', {
 			headers: {
 				"Content-Type":"application/json",
 				"Authorization": `Bearer ${token}`
