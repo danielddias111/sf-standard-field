@@ -7,6 +7,8 @@ const {
   getParentObjectName,
   getSpecificFieldsInWhereClause,
   getSpecificFieldsInOrderByClause,
+	checkSpecific_sObjectField,
+	checkSpecificBadPractices
 } = require("./helperMethods.js");
 const { parseQuery } = require('soql-parser-js');
 
@@ -37,19 +39,18 @@ const getSpecificStandardFields = (splitedClass, fieldsToAnalyse, fields) => {
 				for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
 					tempMap = await checkStandardField(splitedClass[lineCount], referencesArray[i], object, fields)
 					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
-
-					//tempMap  = checkBadPractices(splitedClass[lineCount])
-					//standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
 				}
 			}
 		}
 		//sObject Field
-		/*for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
-			tempMap  = check_sObjectField(splitedClass[lineCount])
+		for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
+			tempMap  = checkSpecificBadPractices(splitedClass[lineCount],fields)
+			standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+			tempMap  = checkSpecific_sObjectField(splitedClass[lineCount], fields)
 			if(tempMap){
 				standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
 			}
-		}*/
+		}
 
 		resolve(standardFieldsMap);
 	})
@@ -126,13 +127,13 @@ const getSpecificStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject,
 					soqlMap = joinMaps(soqlMap, tempMap) 
 				}
 				// FieldRelationship, we need to check the parents to map to the correct object
-				else if(parsedQuery.fields[i].type === 'FieldRelationship' && !parsedQuery.fields[i].field.endsWith('__c') && fields.include(parsedQuery.fields[i].field.toLowerCase())){
+				else if(parsedQuery.fields[i].type === 'FieldRelationship' && !parsedQuery.fields[i].field.endsWith('__c') && fields.includes(parsedQuery.fields[i].field.toLowerCase())){
 					object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
 					//missing FieldRelationship in inner queries as name is different
 					if(isInnerQuery){
 						object = await getNameFromPluralName(object, url, token)
 					}
-					let allObjFields = await getDescribe(object)
+					let allObjFields = await getDescribe(object,url, token)
 					//we can go up more than 1 time, so we need to iterate all parents fields
 					if(parsedQuery.fields[i].relationships){
 						tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)

@@ -147,7 +147,8 @@ const analyseVars = (tempVar, standardSFObjects) => {
 	 * Set<Lead>
 	 * Map<Lead, sObject>
 	 * */ 
-
+	type = type.toLowerCase()
+	obj = obj.toLowerCase()
 	if(type === obj || 
 		type.includes('<'+obj+'>')||
 		type.includes(obj+'>') ||
@@ -213,7 +214,7 @@ const analyseVars = (tempVar, standardSFObjects) => {
 }
 
 
-const getDescribe = (obj) => {
+const getDescribe = (obj, url, token) => {
 	return new Promise((resolve, reject) => {
 		fetch(`${url}/services/data/v50.0/sobjects/${obj}/describe`, {
 			headers: {
@@ -408,6 +409,108 @@ const getSpecificFieldsInOrderByClause = async (parsedQuery, object, fields) => 
 	return soqlMap
 } 
 
+const check_sObjectField = (line) => {
+	let fieldMap = new Map()
+	let obj
+	let field
+	let tempSet = []
+	if(line.includes('sobjectfield')){
+		if(!line.endsWith('__c') && !line.endsWith('__c ')){
+			obj = line.split('=')[1].split('.')[0].replace(/ +/g, '');
+			field = line.split('=')[1].split('.')[1].replace(/ +/g, '');
+			tempSet.push(field)
+			fieldMap.set(obj, tempSet)
+			return fieldMap
+		}
+	}
+	return null
+}
+
+const checkSpecific_sObjectField = (line, fields) => {
+	let fieldMap = new Map()
+	let obj
+	let field
+	let tempSet = []
+	if(line.includes('sobjectfield')){
+		if(!line.endsWith('__c') && !line.endsWith('__c ')){
+			obj = line.split('=')[1].split('.')[0].replace(/ +/g, '');
+			field = line.split('=')[1].split('.')[1].replace(/ +/g, '');
+			if(fields.includes(field.toLowerCase())){
+				tempSet.push(field)
+				fieldMap.set(obj, tempSet)
+				return fieldMap
+			}
+		}
+	}
+	return null
+}
+
+const getAllStandardObjects = async (entryPoint) => {
+	const {token,url} = entryPoint;
+	let endpoint = `${url}/services/data/v50.0/sobjects/`;
+
+	let options = {
+			headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				}
+	}    
+	let standardObjects = []
+	let response = await fetch(endpoint,options);
+	let json = await response.json();
+	const { sobjects } = json
+	for(let i=0; i<sobjects.length; i++){
+		if(!sobjects[i].name.endsWith('__c')){
+			standardObjects.push(sobjects[i].name)
+		}
+	}
+	return standardObjects
+}
+
+//Analyse all lines for [select id, industry from lead][0].industry
+const checkBadPractices = (line) => {
+	let standardFieldsMap = new Map()
+	if(containsQuery(line) && !line.replace(/ +/g, '').endsWith('__c') && !line.replace(/ +/g, '').endsWith(']')){
+		let obj = line.split('from')[1].split(' ')[1].toLowerCase()
+		if(obj.includes(']')){
+			obj = obj.split(']')[0]
+		}
+		let field = line.split('.')[line.split('.').length-1]
+		if(standardFieldsMap.get(obj.toLowerCase())){
+			standardFieldsMap.get(obj.toLowerCase()).push(field)
+		}
+		else {
+			standardFieldsMap.set(obj.toLowerCase(), [field])
+		}
+	}
+	return standardFieldsMap
+}
+
+const containsQuery = (line) => {
+	return line.includes('[') && line.includes(']') && line.includes('select')
+}
+
+//Analyse all lines for [select id, industry from lead][0].industry
+const checkSpecificBadPractices = (line, fields) => {
+	let standardFieldsMap = new Map()
+	if(containsQuery(line) && !line.replace(/ +/g, '').endsWith('__c') && !line.replace(/ +/g, '').endsWith(']')){
+		let obj = line.split('from')[1].split(' ')[1].toLowerCase()
+		if(obj.includes(']')){
+			obj = obj.split(']')[0]
+		}
+		let field = line.split('.')[line.split('.').length-1]
+		if(fields.includes(field.toLowerCase())){
+			if(standardFieldsMap.get(obj.toLowerCase())){
+				standardFieldsMap.get(obj.toLowerCase()).push(field)
+			}
+			else {
+				standardFieldsMap.set(obj.toLowerCase(), [field])
+			}
+		}
+	}
+	return standardFieldsMap
+}
+
 module.exports = {
 	getClassDetails,
 	getFieldsToAnalyse,
@@ -420,5 +523,10 @@ module.exports = {
 	getFieldsInWhereClause,
 	getSpecificFieldsInWhereClause,
 	getFieldsInOrderByClause,
-	getSpecificFieldsInOrderByClause
+	getSpecificFieldsInOrderByClause,
+	check_sObjectField,
+	checkSpecific_sObjectField,
+	getAllStandardObjects,
+	checkBadPractices,
+	checkSpecificBadPractices
 }

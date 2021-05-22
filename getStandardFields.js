@@ -10,10 +10,14 @@ const {
   getNameFromPluralName,
   getFieldsInWhereClause,
   getFieldsInOrderByClause,
+	getDescribe,
+	check_sObjectField,
+	getAllStandardObjects,
+	checkBadPractices
 } = require("./helperMethods.js");
 //const strip = require('strip-comments');
 //standardSFObjects contains the objects to check
-let standardSFObjects
+let standardSFObjects = []
 let soqlMap = new Map();
 let url;
 let token;
@@ -23,7 +27,14 @@ async function getStandardFields(entryPoint, options){
 
     url = entryPoint.url;
     token = entryPoint.token;
-		standardSFObjects = options.standardSFObjects
+		if(options.fields.length === 0){
+			standardSFObjects = await getAllStandardObjects(entryPoint)
+		}
+		else {
+			for(let i=0; i<options.fields.length; i++){
+				standardSFObjects.push(options.fields[i].split('.')[0].toLowerCase())
+			}
+		}
     let {Body,SymbolTable} = await getClassDetails(entryPoint);
 		Body = removeComments(Body)
 
@@ -38,8 +49,8 @@ async function getStandardFields(entryPoint, options){
 			console.log(standardFieldsMap)
 		}
 		else {
-			options.fields = options.fields.map(value => value.toLowerCase())
-			options.standardSFObjects = options.standardSFObjects.map(value => value.toLowerCase())
+			options.fields = options.fields.map(value => value.split('.')[1].toLowerCase())
+			options.standardSFObjects = standardSFObjects
 			standardFieldsMap = await specificFields(entryPoint, options, splitedClass, fieldsToAnalyse)
 			console.log('standard Fields used:')
 			console.log(standardFieldsMap)
@@ -108,14 +119,13 @@ const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 				for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
 					tempMap = await checkStandardField(splitedClass[lineCount], referencesArray[i], object)
 					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
-
-					tempMap  = checkBadPractices(splitedClass[lineCount])
-					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
 				}
 			}
 		}
 		//sObject Field
 		for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
+			tempMap  = checkBadPractices(splitedClass[lineCount])
+			standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
 			tempMap  = check_sObjectField(splitedClass[lineCount])
 			if(tempMap){
 				standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
@@ -126,41 +136,9 @@ const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 	})
 	
 }		
-//Analyse all lines for [select id, industry from lead][0].industry
-const checkBadPractices = (line) => {
-	let standardFieldsMap = new Map()
-	if(containsQuery(line) && !line.replace(/ +/g, '').endsWith('__c') && !line.replace(/ +/g, '').endsWith(']')){
-		let obj = line.split('from')[1].split(' ')[1].toLowerCase()
-		if(obj.includes(']')){
-			obj = obj.split(']')[0]
-		}
-		let field = line.split('.')[line.split('.').length-1]
-		if(standardFieldsMap.get(obj.toLowerCase())){
-			standardFieldsMap.get(obj.toLowerCase()).push(field)
-		}
-		else {
-			standardFieldsMap.set(obj.toLowerCase(), [field])
-		}
-	}
-	return standardFieldsMap
-}
 
-const check_sObjectField = (line) => {
-	let fieldMap = new Map()
-	let obj
-	let field
-	let tempSet = []
-	if(line.includes('sobjectfield')){
-		if(!line.endsWith('__c') && !line.endsWith('__c ')){
-			obj = line.split('=')[1].split('.')[0].replace(/ +/g, '');
-			field = line.split('=')[1].split('.')[1].replace(/ +/g, '');
-			tempSet.push(field)
-			fieldMap.set(obj, tempSet)
-			return fieldMap
-		}
-	}
-	return null
-}
+
+
 
 // check in SOQL and basic use
 // myLead.name
@@ -192,9 +170,7 @@ const checkStandardField = (line, field, object) => {
 }
 
 
-const containsQuery = (line) => {
-	return line.includes('[') && line.includes(']') && line.includes('select')
-}
+
 
 
 
@@ -243,7 +219,7 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 				if(isInnerQuery){
 					object = await getNameFromPluralName(object, url, token)
 				}
-				let allObjFields = await getDescribe(object)
+				let allObjFields = await getDescribe(object, url, token)
 				//we can go up more than 1 time, so we need to iterate all parents fields
 				if(parsedQuery.fields[i].relationships){
 					//tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)

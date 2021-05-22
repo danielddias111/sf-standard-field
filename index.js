@@ -1,8 +1,7 @@
 const getStandardFields = require('./getStandardFields');
 
 const options = {
-	fields: ['id','CloseDate'],
-	standardSFObjects: ['Lead','Account','Opportunity']
+	fields: ['opportunity.stagename']
 }
 
 const entryPoint = {
