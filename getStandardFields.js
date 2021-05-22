@@ -1,30 +1,50 @@
 const fetch = require('node-fetch');
 const { parseQuery } = require('soql-parser-js');
-const strip = require('strip-comments');
+const specificFields = require('./specificFields.js');
+const {
+  getClassDetails,
+  getFieldsToAnalyse,
+  joinMaps,
+  lineContainsObjReference,
+  containsStandardField,
+  getNameFromPluralName,
+  getFieldsInWhereClause,
+  getFieldsInOrderByClause,
+} = require("./helperMethods.js");
+//const strip = require('strip-comments');
 //standardSFObjects contains the objects to check
-let standardSFObjects		= ['Lead','Account','Contact','Contract','Product2']
+let standardSFObjects
 let soqlMap = new Map();
 let url;
 let token;
+let standardFieldsMap
 
-async function getStandardFields(entryPoint){
+async function getStandardFields(entryPoint, options){
 
     url = entryPoint.url;
     token = entryPoint.token;
-
+		standardSFObjects = options.standardSFObjects
     let {Body,SymbolTable} = await getClassDetails(entryPoint);
+		Body = removeComments(Body)
 
-    Body = removeComments(Body)
-    //console.log(Body);
-    let splitedClass = Body.split(';')
-
-    let fieldsToAnalyse =getFieldsToAnalyse(SymbolTable);
-    console.log('Fields to analyse',fieldsToAnalyse)
-
-    let standardFieldsMap = await getAllStandardFields(splitedClass, fieldsToAnalyse)
+		let splitedClass = Body.split(';')
+		
+		let fieldsToAnalyse =getFieldsToAnalyse(SymbolTable, standardSFObjects);
+		console.log('Fields to analyse',fieldsToAnalyse)
+		//Analyse all fields
+		if(options.fields.length === 0){
+			standardFieldsMap = await getAllStandardFields(splitedClass, fieldsToAnalyse)
+			console.log('standard Fields used:')
+			console.log(standardFieldsMap)
+		}
+		else {
+			options.fields = options.fields.map(value => value.toLowerCase())
+			options.standardSFObjects = options.standardSFObjects.map(value => value.toLowerCase())
+			standardFieldsMap = await specificFields(entryPoint, options, splitedClass, fieldsToAnalyse)
+			console.log('standard Fields used:')
+			console.log(standardFieldsMap)
+		}
     
-		console.log('standard Fields used:')
-		console.log(standardFieldsMap)
   
 }
 
@@ -73,148 +93,7 @@ const removeComments = (classContent) => {
 	return classWithoutComments
 }
 
-/**
- * 
- * @param {*} classContent 
- * @description this method returns all fields and object instances inside the class that might contains standard SF fields 
- */
-const getFieldsToAnalyse = (symbolTable) => {
-	
-  //Symbol table return properties and variables, we need to analysed both
-  let fieldsToAnalysePropsMap	= analyseProps(symbolTable)
-  let fieldsToAnalyseVarsMap	= analyseVars(symbolTable)
-	let finalMap 								= joinMaps(fieldsToAnalysePropsMap, fieldsToAnalyseVarsMap)
-	
-	return finalMap
-}
 
-// join maps with key and lists as values
-const joinMaps = (map1, map2) => {
-	if(!map2){
-		return map1
-	}
-	let temp
-	let finalMap = new Map()
-	for(const [key, value] of map1){
-		temp = map2.get(key)
-		if(temp){
-			let tempSet = value.concat(map2.get(key))
-			//Remove duplicates
-			tempSet = [... new Set(tempSet)]
-			finalMap.set(key, tempSet)
-		}
-		else{
-			finalMap.set(key, value)
-		}
-	}
-	if(map2){
-		for(const [key, value] of map2){
-			temp = finalMap.get(key)
-			if(!temp){
-				finalMap.set(key, value)
-			}
-		}
-	}
-	return finalMap
-}
-
-/**
- *  @description analyse the global variables of Symbol Table
- * @param {*} tempVar 
- */
-const analyseProps = (tempVar) => {
-	let tempProps
-	let fieldsToAnalyse	= new Map();
-	// check properties - class variables
-	for(let propsCount=0; propsCount < tempVar.properties.length; propsCount++){
-		tempProps = tempVar.properties
-		// check if type contains object name
-		for(let standardFieldsCount = 0; standardFieldsCount < standardSFObjects.length; standardFieldsCount++){
-			if(containsObj(tempProps[propsCount].type, 
-				standardSFObjects[standardFieldsCount])){
-					let tempArray = []
-					if(fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])){
-						tempArray = fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])
-						tempArray.push(tempProps[propsCount].name.toLowerCase())
-						fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
-					}
-					else {
-						tempArray.push(tempProps[propsCount].name.toLowerCase())
-						fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
-					}
-			}
-		}
-	}
-	return fieldsToAnalyse
-}
-/**
- *  @description analyse the methods variables of Symbol Table
- * @param {*} tempVar 
- */
-const analyseVars = (tempVar) => {
-	let tempVars
-	let fieldsToAnalyse	= new Map();
-	// check variables - methods variables
-	for(let varCount=0; varCount < tempVar.variables.length; varCount++){
-		tempVars	= tempVar.variables
-		// check if type contains object name 
-		for(let standardFieldsCount = 0; standardFieldsCount < standardSFObjects.length; standardFieldsCount++){
-			if(containsObj(tempVars[varCount].type, 
-					standardSFObjects[standardFieldsCount])){
-				let tempArray = []
-				if(fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])){
-					tempArray = fieldsToAnalyse.get(standardSFObjects[standardFieldsCount])
-					tempArray.push(tempVars[varCount].name.toLowerCase())
-					fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
-				}
-				else {
-					tempArray.push(tempVars[varCount].name.toLowerCase())
-					fieldsToAnalyse.set(standardSFObjects[standardFieldsCount], tempArray)
-				}
-			}
-		}
-	}
-	return fieldsToAnalyse
-}
-
-/**
- * @param {type} type type of object to analyse 
- * @param {obj} obj object type
- * @returns if type is of type obj
- */
-const containsObj = (type, obj) => {
-	/** 
-	 * Valid examples
-	 * Lead
-	 * Map<Id, Lead>
-	 * List<Lead>
-	 * Set<Lead>
-	 * Map<Lead, sObject>
-	 * */ 
-
-	if(type === obj || 
-		type.includes('<'+obj+'>')||
-		type.includes(obj+'>') ||
-		type.includes('<'+obj)){
-		return true
-	}
-
-	return false;
-}
-
-/**
- * 
- * @param {*} line 
- * @param {*} standardField 
- * @param {*} objInstance 
- * @returns 
- */
-const lineContainsObjReference = (line, standardField) => {
-	if((line.includes(' '+standardField) || line.includes('='+standardField)) && (line.includes(standardField + '.') || line.includes(standardField + ' ') || line.includes(standardField + '[')) ){
-		return true
-	}
-	return false
-}
 
 const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 	return new Promise(async (resolve, reject) => {
@@ -317,43 +196,6 @@ const containsQuery = (line) => {
 	return line.includes('[') && line.includes(']') && line.includes('select')
 }
 
-/**
- * @description check if line contains standard field, Account acc= new Account(Industry='') or acc.Industry
- */
-const containsStandardField = (line, objReference) => {
-	let standardArray = []
-	let spaceSplit = line.split(' ');
-	//check for a.industry
-	for(let i=0; i<spaceSplit.length; i++){
-		if((spaceSplit[i].startsWith('='+objReference) || spaceSplit[i].startsWith(objReference+'.') || spaceSplit[i].startsWith(objReference+'[')) && !spaceSplit[i].endsWith('__c') ){
-			standardArray.push(spaceSplit[i].split('.')[1])
-		}
-	}
-	//lead a = new lead(industry='auto', cleanstatus='')
-	//check for new object instances
-	// line only contains one space, so if they have '=    new' becomes '= new'
-	if((line.includes(' '+objReference) || line.includes(objReference+'.')) && (line.includes('=new') || line.includes('= new'))){
-		let leftOfEquals = ''
-		if(line.split('=').length > 2){
-			for(let i=1; i<line.split('=').length-1; i++){
-				leftOfEquals = line.split('=')[i]
-				if(i===1){
-					if(!leftOfEquals.split('(')[1].endsWith('__c')){
-						standardArray.push(leftOfEquals.split('(')[1])
-					}
-				}
-				else {
-					if(!leftOfEquals.split(',')[1].endsWith('__c')){
-						// removing spaces so that we can identify duplicates
-						standardArray.push(leftOfEquals.split(',')[1].replace(/ +/g, ''))
-					}
-				}
-			}
-		}
-	}
-
-	return standardArray;
-}
 
 
 const checkStandardFieldSOQL = (line, object) => {
@@ -390,7 +232,7 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 			else if(parsedQuery.fields[i].type === 'FieldSubquery'){
 				let tempMap 
 				object = parsedQuery.fields[i].subquery.relationshipName
-				object = await getNameFromPluralName(object)
+				object = await getNameFromPluralName(object, url, token)
 				tempMap = await getStandardFieldsInSOQL(parsedQuery.fields[i].subquery, true, object)
 				soqlMap = joinMaps(soqlMap, tempMap) 
 			}
@@ -399,7 +241,7 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 				object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
 				//missing FieldRelationship in inner queries as name is different
 				if(isInnerQuery){
-					object = await getNameFromPluralName(object)
+					object = await getNameFromPluralName(object, url, token)
 				}
 				let allObjFields = await getDescribe(object)
 				//we can go up more than 1 time, so we need to iterate all parents fields
@@ -423,103 +265,11 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 	})
 }
 
-const getParentObjectName = async (field, allObjFieldsInput) => {
-	let allObjFields = allObjFieldsInput
-	let tempSet = []
-	let soqlMap = new Map()
-	for(let relationshipsCount = 0; relationshipsCount<field.relationships.length; relationshipsCount++){
-		if(allObjFields){
-			for(let x=0; x<allObjFields.length; x++){
-				//if its does not have  relationshipName means it is not a lookup
-				if(allObjFields[x].relationshipName){
-					if(field.relationships[relationshipsCount]===allObjFields[x].relationshipName.toLowerCase()){
-						if(relationshipsCount+1 === field.relationships.length){
-							tempSet.push(field.field)
-							soqlMap.set(allObjFields[x].referenceTo[0].toLowerCase(),tempSet)	
-						}
-						else {
-							allObjFields = await getDescribe(allObjFields[x].referenceTo[0])
-							break
-						}
-					}
-				}
-			}
-		}	
-	}
-	return soqlMap
-}
 
-const getNameFromPluralName = async (object) => {
-	let singularName
-	let allObjs
-	allObjs = await getObjNameFromPluralName(object)
-		for(let objs=0; objs<allObjs.length; objs++){
-			if(object === allObjs[objs].labelPlural.toLowerCase()){
-				singularName = allObjs[objs].label;
-					break
-			}
-		}
-	return singularName
-}
+
 				
 
-const getFieldsInWhereClause = async (parsedQuery, object) => {
-	let soqlMap = new Map()
-	let tempMap = new Map()
-	let tempSet = []
-	let allObjFields
-	let fieldObj = {
-		field: '',
-		relationships: []
-	}
-	if(!parsedQuery.where.left.field.endsWith('__c')){
-		if(parsedQuery.where.left.field.includes('.')){
 
-			fieldObj.field = parsedQuery.where.left.field.split('.')[parsedQuery.where.left.field.split('.').length-1]
-			fieldObj.relationships = parsedQuery.where.left.field.split('.').splice(0,1)
-			allObjFields = await getDescribe(object)
-			soqlMap = await getParentObjectName(fieldObj, allObjFields)
-		}
-		else {
-			tempSet.push(parsedQuery.where.left.field)
-			soqlMap.set(object, tempSet)
-		}
-		if(parsedQuery.where.right){
-			tempMap = checkRecursiveRightElement(parsedQuery.where.right, object)
-			soqlMap = joinMaps(soqlMap, tempMap)
-		}
-	}
-	return soqlMap
-} 
-
-const getFieldsInOrderByClause = async (parsedQuery, object) => {
-	let soqlMap = new Map()
-	let tempMap = new Map()
-	let tempSet = []
-	let allObjFields
-	let fieldObj = {
-		field: '',
-		relationships: []
-	}
-	for(let i=0; i<parsedQuery.orderBy.length; i++){
-		if(!parsedQuery.orderBy[i].field.endsWith('__c')){
-			if(parsedQuery.orderBy[i].field.includes('.')){
-				fieldObj.field = parsedQuery.orderBy[i].field.split('.')[parsedQuery.orderBy[i].field.split('.').length-1]
-				fieldObj.relationships = parsedQuery.orderBy[i].field.split('.').splice(0,1)
-				allObjFields = await getDescribe(object)
-				tempMap = await getParentObjectName(fieldObj, allObjFields)
-				soqlMap = joinMaps(soqlMap, tempMap)
-			}
-			else {
-				tempSet.push(parsedQuery.orderBy[i].field)
-				tempMap.set(object, tempSet)
-				soqlMap = joinMaps(soqlMap, tempMap)
-			}
-		}
-	}
-	
-	return soqlMap
-} 
 
 
 const checkRecursiveRightElement = (parsedQueryRightElement, object) => {
@@ -539,66 +289,5 @@ const checkRecursiveRightElement = (parsedQueryRightElement, object) => {
 }
 
 
-const getDescribe = (obj) => {
-	return new Promise((resolve, reject) => {
-		fetch(`${url}/services/data/v50.0/sobjects/${obj}/describe`, {
-			headers: {
-				"Content-Type":"application/json",
-				"Authorization": `Bearer ${token}`
-			}
-		})
-		.then(response => {
-			response.json().then(data => {
-				//console.log(data.fields)
-				resolve(data.fields)
-			})
-			
-		})
-	})
-}
-
-const getObjNameFromPluralName = (pluralName) => {
-	return new Promise((resolve, reject) => {
-		fetch(url+'/services/data/v50.0/sobjects/', {
-			headers: {
-				"Content-Type":"application/json",
-				"Authorization": `Bearer ${token}`
-			}
-		})
-		.then(response => {
-			response.json().then(data => {
-				resolve(data.sobjects)
-			})
-			
-		})
-	})
-}
 
 
-/**
- * @description api call (using SF tooling API) to get class information
- * @param {*} entryPoint 
- * @returns 
- */
- async function getClassDetails(entryPoint){
-
-	const {classId,token,url} = entryPoint;
-	let endpoint = `${url}/services/data/v51.0/tooling/sobjects/ApexClass/${classId}`;
-
-	let options = {
-			headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${token}`
-				}
-	}    
-
-	let response = await fetch(endpoint,options);
-	let json = await response.json();
-
-
-	
-	const {Body,SymbolTable} = json;
-
-	return {Body,SymbolTable};
-
-}
