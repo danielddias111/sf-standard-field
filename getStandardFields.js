@@ -404,8 +404,8 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 				let allObjFields = await getDescribe(object)
 				//we can go up more than 1 time, so we need to iterate all parents fields
 				if(parsedQuery.fields[i].relationships){
-					tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)
-					soqlMap = joinMaps(soqlMap, tempMap)
+					//tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)
+					//soqlMap = joinMaps(soqlMap, tempMap)
 				}	 
 			}
 		}
@@ -413,6 +413,11 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 		if(parsedQuery.where){
 			let tempMap = await getFieldsInWhereClause(parsedQuery, mainObject.toLowerCase());
 			soqlMap = joinMaps(soqlMap, tempMap)
+		}
+		if(parsedQuery.orderBy){
+			let tempMap = await getFieldsInOrderByClause(parsedQuery, mainObject.toLowerCase());
+			soqlMap = joinMaps(soqlMap, tempMap)
+			
 		}
 		resolve(soqlMap);
 	})
@@ -484,6 +489,35 @@ const getFieldsInWhereClause = async (parsedQuery, object) => {
 			soqlMap = joinMaps(soqlMap, tempMap)
 		}
 	}
+	return soqlMap
+} 
+
+const getFieldsInOrderByClause = async (parsedQuery, object) => {
+	let soqlMap = new Map()
+	let tempMap = new Map()
+	let tempSet = []
+	let allObjFields
+	let fieldObj = {
+		field: '',
+		relationships: []
+	}
+	for(let i=0; i<parsedQuery.orderBy.length; i++){
+		if(!parsedQuery.orderBy[i].field.endsWith('__c')){
+			if(parsedQuery.orderBy[i].field.includes('.')){
+				fieldObj.field = parsedQuery.orderBy[i].field.split('.')[parsedQuery.orderBy[i].field.split('.').length-1]
+				fieldObj.relationships = parsedQuery.orderBy[i].field.split('.').splice(0,1)
+				allObjFields = await getDescribe(object)
+				tempMap = await getParentObjectName(fieldObj, allObjFields)
+				soqlMap = joinMaps(soqlMap, tempMap)
+			}
+			else {
+				tempSet.push(parsedQuery.orderBy[i].field)
+				tempMap.set(object, tempSet)
+				soqlMap = joinMaps(soqlMap, tempMap)
+			}
+		}
+	}
+	
 	return soqlMap
 } 
 
