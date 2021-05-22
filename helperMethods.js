@@ -528,5 +528,6 @@ module.exports = {
 	checkSpecific_sObjectField,
 	getAllStandardObjects,
 	checkBadPractices,
-	checkSpecificBadPractices
+	checkSpecificBadPractices,
+	containsQuery
 }

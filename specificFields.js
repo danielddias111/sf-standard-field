@@ -8,7 +8,8 @@ const {
   getSpecificFieldsInWhereClause,
   getSpecificFieldsInOrderByClause,
 	checkSpecific_sObjectField,
-	checkSpecificBadPractices
+	checkSpecificBadPractices,
+	containsQuery
 } = require("./helperMethods.js");
 const { parseQuery } = require('soql-parser-js');
 
@@ -49,6 +50,14 @@ const getSpecificStandardFields = (splitedClass, fieldsToAnalyse, fields) => {
 			tempMap  = checkSpecific_sObjectField(splitedClass[lineCount], fields)
 			if(tempMap){
 				standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+			}
+			//inner SOQL might exist that it is not captured in the first loop, where we just search for variables of the type of the object we want to search
+			if(containsQuery(splitedClass[lineCount])){
+				for(let standardCount = 0 ; standardCount<SFobjects.length; standardCount++){
+					tempMap = await checkStandardFieldSOQL(splitedClass[lineCount], SFobjects[standardCount], fields)
+					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+				}
+				
 			}
 		}
 
@@ -104,7 +113,7 @@ const checkStandardFieldSOQL = (line, object, fields) => {
 
 const getSpecificStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject, fields) => {
 	return new Promise(async (resolve, reject) => {
-		if(SFobjects.includes(mainObject.toLowerCase())){
+		//if(SFobjects.includes(mainObject.toLowerCase())){
 			let object
 			for(let i=0; i<parsedQuery.fields.length; i++){
 				if(parsedQuery.fields[i].type === 'Field' && !parsedQuery.fields[i].field.endsWith('__c')){
@@ -151,7 +160,7 @@ const getSpecificStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject,
 				soqlMap = joinMaps(soqlMap, tempMap)
 				
 			}
-		}
+		//}
 		
 		resolve(soqlMap);
 	})

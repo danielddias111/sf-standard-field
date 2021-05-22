@@ -1,7 +1,7 @@
 const getStandardFields = require('./getStandardFields');
 
 const options = {
-	fields: ['opportunity.stagename']
+	fields: ['contact.firstname','lead.ownerid']
 }
 
 const entryPoint = {
