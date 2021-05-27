@@ -39,7 +39,7 @@ async function getStandardFields(entryPoint, options){
 		Body = removeComments(Body)
 
 		let splitedClass = Body.split(';')
-		
+
 		let fieldsToAnalyse =getFieldsToAnalyse(SymbolTable, standardSFObjects);
 		console.log('Fields to analyse',fieldsToAnalyse)
 		//Analyse all fields
@@ -49,21 +49,37 @@ async function getStandardFields(entryPoint, options){
 			console.log(standardFieldsMap)
 		}
 		else {
+			options.initialFields = options.fields
 			options.fields = options.fields.map(value => value.split('.')[1].toLowerCase())
 			options.standardSFObjects = standardSFObjects
 			standardFieldsMap = await specificFields(entryPoint, options, splitedClass, fieldsToAnalyse)
-			console.log('standard Fields used:')
-			console.log(standardFieldsMap)
+			let returnMap = new Map()
+
+			//building map as the standardFieldsMap can return some fields that were not requested
+			//eg: 'contact.firstname','lead.ownerid' would return {
+  		//'lead' => [ 'firstname', 'ownerid' ],
+  		//'contact' => [ 'ownerid', 'firstname' ]
+			for(let i=0; i<options.initialFields.length; i++){
+				let obj = options.initialFields[i].split('.')[0]
+
+				let field = options.initialFields[i].split('.')[1]
+				if(standardFieldsMap.get(obj) && standardFieldsMap.get(obj).includes(field)){
+					returnMap.set(options.initialFields[i], true)
+				}
+				else {
+					returnMap.set(options.initialFields[i], false)
+				}
+			}
+
+			console.log(returnMap)
 		}
-    
-  
 }
 
 module.exports =  getStandardFields;
 
 /**
- * 
- * @param {*} line 
+ *
+ * @param {*} line
  * @description removes comments
  * @returns class content without comments
  */
@@ -91,7 +107,7 @@ const removeComments = (classContent) => {
 		if(!notAddingLineComment && !multipleLinecomment){
 			classWithoutComments+=classContent.charAt(i)
 		}
-		
+
 	}
 	// Adding bracket because we iterate until length - 1
 	if(classContent.endsWith('}')){
@@ -113,7 +129,7 @@ const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 		let tempMap = new Map()
 		for (let object of fieldsToAnalyse.keys()){
 			// referencesArray contains the array of instances that an object have
-			// e.g. {'Account': [accFieldA , accFieldB]} 
+			// e.g. {'Account': [accFieldA , accFieldB]}
 			referencesArray = fieldsToAnalyse.get(object)
 			for (let i=0;i<referencesArray.length;i++){
 				for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
@@ -134,8 +150,8 @@ const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 
 		resolve(standardFieldsMap);
 	})
-	
-}		
+
+}
 
 
 
@@ -161,12 +177,12 @@ const checkStandardField = (line, field, object) => {
 			}
 			//SOQL check
 			let tempMap = await checkStandardFieldSOQL(line, object)
-			standardFieldsMap = joinMaps(standardFieldsMap, tempMap) 
+			standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
 			resolve(standardFieldsMap)
 		}
 		resolve(null)
 	})
-	
+
 }
 
 
@@ -185,14 +201,14 @@ const checkStandardFieldSOQL = (line, object) => {
 	}
 	resolve(null)
 	})
-	
+
 }
 
 
 
 const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 	return new Promise(async (resolve) => {
-		
+
 		let object
 		for(let i=0; i<parsedQuery.fields.length; i++){
 			if(parsedQuery.fields[i].type === 'Field' && !parsedQuery.fields[i].field.endsWith('__c')){
@@ -203,14 +219,14 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 				else {
 					let tempArray = [parsedQuery.fields[i].field]
 					soqlMap.set(mainObject.toLowerCase(), tempArray)
-				}	
+				}
 			}
 			else if(parsedQuery.fields[i].type === 'FieldSubquery'){
-				let tempMap 
+				let tempMap
 				object = parsedQuery.fields[i].subquery.relationshipName
 				object = await getNameFromPluralName(object, url, token)
 				tempMap = await getStandardFieldsInSOQL(parsedQuery.fields[i].subquery, true, object)
-				soqlMap = joinMaps(soqlMap, tempMap) 
+				soqlMap = joinMaps(soqlMap, tempMap)
 			}
 			// FieldRelationship, we need to check the parents to map to the correct object
 			else if(parsedQuery.fields[i].type === 'FieldRelationship' && !parsedQuery.fields[i].field.endsWith('__c')){
@@ -224,7 +240,7 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 				if(parsedQuery.fields[i].relationships){
 					//tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)
 					//soqlMap = joinMaps(soqlMap, tempMap)
-				}	 
+				}
 			}
 		}
 		// check where clause
@@ -235,7 +251,7 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 		if(parsedQuery.orderBy){
 			let tempMap = await getFieldsInOrderByClause(parsedQuery, mainObject.toLowerCase());
 			soqlMap = joinMaps(soqlMap, tempMap)
-			
+
 		}
 		resolve(soqlMap);
 	})
@@ -243,7 +259,7 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 
 
 
-				
+
 
 
 
