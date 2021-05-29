@@ -1,7 +1,7 @@
-const getStandardFields = require('./getStandardFields');
+const getStandardFields = require('../lib/getStandardFields');
 
 const options = {
-	fields: []
+	fields: ['lead.industry']
 }
 
 const entryPoint = {
