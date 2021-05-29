@@ -1,20 +1,7 @@
 const fetch = require('node-fetch');
 const { parseQuery } = require('soql-parser-js');
 const specificFields = require('./specificFields.js');
-const {
-  getClassDetails,
-  getFieldsToAnalyse,
-  joinMaps,
-  lineContainsObjReference,
-  containsStandardField,
-  getNameFromPluralName,
-  getFieldsInWhereClause,
-  getFieldsInOrderByClause,
-	getDescribe,
-	check_sObjectField,
-	getAllStandardObjects,
-	checkBadPractices
-} = require("./helperMethods.js");
+const helper = require("./helperMethods.js");
 //const strip = require('strip-comments');
 //standardSFObjects contains the objects to check
 let standardSFObjects = []
@@ -28,19 +15,19 @@ async function getStandardFields(entryPoint, options){
     url = entryPoint.url;
     token = entryPoint.token;
 		if(options.fields.length === 0){
-			standardSFObjects = await getAllStandardObjects(entryPoint)
+			standardSFObjects = await helper.getAllStandardObjects(entryPoint)
 		}
 		else {
 			for(let i=0; i<options.fields.length; i++){
 				standardSFObjects.push(options.fields[i].split('.')[0].toLowerCase())
 			}
 		}
-    let {Body,SymbolTable} = await getClassDetails(entryPoint);
+    let {Body,SymbolTable} = await helper.getClassDetails(entryPoint);
 		Body = removeComments(Body)
 
 		let splitedClass = Body.split(';')
 
-		let fieldsToAnalyse =getFieldsToAnalyse(SymbolTable, standardSFObjects);
+		let fieldsToAnalyse =helper.getFieldsToAnalyse(SymbolTable, standardSFObjects);
 		console.log('Fields to analyse',fieldsToAnalyse)
 		//Analyse all fields
 		if(options.fields.length === 0){
@@ -134,17 +121,17 @@ const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 			for (let i=0;i<referencesArray.length;i++){
 				for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
 					tempMap = await checkStandardField(splitedClass[lineCount], referencesArray[i], object)
-					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+					standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
 				}
 			}
 		}
 		//sObject Field
 		for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
-			tempMap  = checkBadPractices(splitedClass[lineCount])
-			standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
-			tempMap  = check_sObjectField(splitedClass[lineCount])
+			tempMap  = helper.checkBadPractices(splitedClass[lineCount])
+			standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
+			tempMap  = helper.check_sObjectField(splitedClass[lineCount])
 			if(tempMap){
-				standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+				standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
 			}
 		}
 
@@ -161,8 +148,8 @@ const getAllStandardFields = (splitedClass, fieldsToAnalyse) => {
 const checkStandardField = (line, field, object) => {
 	return new Promise(async (resolve, reject) => {
 		let standardFieldsMap = new Map()
-		if(lineContainsObjReference(line, field)){
-			let standardArray = containsStandardField(line, field)
+		if(helper.lineContainsObjReference(line, field)){
+			let standardArray = helper.containsStandardField(line, field)
 			if(standardArray.length>0){
 				if(standardFieldsMap.get(object)){
 					//concating the 2 arrays
@@ -177,7 +164,7 @@ const checkStandardField = (line, field, object) => {
 			}
 			//SOQL check
 			let tempMap = await checkStandardFieldSOQL(line, object)
-			standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+			standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
 			resolve(standardFieldsMap)
 		}
 		resolve(null)
@@ -224,18 +211,18 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 			else if(parsedQuery.fields[i].type === 'FieldSubquery'){
 				let tempMap
 				object = parsedQuery.fields[i].subquery.relationshipName
-				object = await getNameFromPluralName(object, url, token)
+				object = await helper.getNameFromPluralName(object, url, token)
 				tempMap = await getStandardFieldsInSOQL(parsedQuery.fields[i].subquery, true, object)
-				soqlMap = joinMaps(soqlMap, tempMap)
+				soqlMap = helper.joinMaps(soqlMap, tempMap)
 			}
 			// FieldRelationship, we need to check the parents to map to the correct object
 			else if(parsedQuery.fields[i].type === 'FieldRelationship' && !parsedQuery.fields[i].field.endsWith('__c')){
 				object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
 				//missing FieldRelationship in inner queries as name is different
 				if(isInnerQuery){
-					object = await getNameFromPluralName(object, url, token)
+					object = await helper.getNameFromPluralName(object, url, token)
 				}
-				let allObjFields = await getDescribe(object, url, token)
+				let allObjFields = await helper.getDescribe(object, url, token)
 				//we can go up more than 1 time, so we need to iterate all parents fields
 				if(parsedQuery.fields[i].relationships){
 					//tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)
@@ -245,12 +232,12 @@ const getStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject) => {
 		}
 		// check where clause
 		if(parsedQuery.where){
-			let tempMap = await getFieldsInWhereClause(parsedQuery, mainObject.toLowerCase());
-			soqlMap = joinMaps(soqlMap, tempMap)
+			let tempMap = await helper.getFieldsInWhereClause(parsedQuery, mainObject.toLowerCase());
+			soqlMap = helper.joinMaps(soqlMap, tempMap)
 		}
 		if(parsedQuery.orderBy){
-			let tempMap = await getFieldsInOrderByClause(parsedQuery, mainObject.toLowerCase());
-			soqlMap = joinMaps(soqlMap, tempMap)
+			let tempMap = await helper.getFieldsInOrderByClause(parsedQuery, mainObject.toLowerCase());
+			soqlMap = helper.joinMaps(soqlMap, tempMap)
 
 		}
 		resolve(soqlMap);
@@ -275,7 +262,7 @@ const checkRecursiveRightElement = (parsedQueryRightElement, object) => {
 	}
 	if(parsedQueryRightElement.right){
 		tempMap = checkRecursiveRightElement(parsedQueryRightElement.right, object)
-		soqlMap = joinMaps(soqlMap, tempMap)
+		soqlMap = helper.joinMaps(soqlMap, tempMap)
 	}
 	return soqlMap
 }

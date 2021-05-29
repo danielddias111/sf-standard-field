@@ -1,16 +1,4 @@
-const {
-  lineContainsObjReference,
-  joinMaps,
-  containsStandardField,
-  getNameFromPluralName,
-  getDescribe,
-  getParentObjectName,
-  getSpecificFieldsInWhereClause,
-  getSpecificFieldsInOrderByClause,
-	checkSpecific_sObjectField,
-	checkSpecificBadPractices,
-	containsQuery
-} = require("./helperMethods.js");
+const helper = require("./helperMethods.js");
 const { parseQuery } = require('soql-parser-js');
 
 
@@ -39,23 +27,23 @@ const getSpecificStandardFields = (splitedClass, fieldsToAnalyse, fields) => {
 			for (let i=0;i<referencesArray.length;i++){
 				for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
 					tempMap = await checkStandardField(splitedClass[lineCount], referencesArray[i], object, fields)
-					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+					standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
 				}
 			}
 		}
 		//sObject Field
 		for(let lineCount = 0; lineCount<splitedClass.length; lineCount++){
-			tempMap  = checkSpecificBadPractices(splitedClass[lineCount],fields)
-			standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
-			tempMap  = checkSpecific_sObjectField(splitedClass[lineCount], fields)
+			tempMap  = helper.checkSpecificBadPractices(splitedClass[lineCount],fields)
+			standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
+			tempMap  = helper.checkSpecific_sObjectField(splitedClass[lineCount], fields)
 			if(tempMap){
-				standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+				standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
 			}
 			//inner SOQL might exist that it is not captured in the first loop, where we just search for variables of the type of the object we want to search
-			if(containsQuery(splitedClass[lineCount])){
+			if(helper.containsQuery(splitedClass[lineCount])){
 				for(let standardCount = 0 ; standardCount<SFobjects.length; standardCount++){
 					tempMap = await checkStandardFieldSOQL(splitedClass[lineCount], SFobjects[standardCount], fields)
-					standardFieldsMap = joinMaps(standardFieldsMap, tempMap)
+					standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap)
 				}
 				
 			}
@@ -72,8 +60,8 @@ const getSpecificStandardFields = (splitedClass, fieldsToAnalyse, fields) => {
 const checkStandardField = (line, field, object, fields) => {
 	return new Promise(async (resolve, reject) => {
 		let standardFieldsMap = new Map()
-		if(lineContainsObjReference(line, field)){
-			let standardArray = containsStandardField(line, field)
+		if(helper.lineContainsObjReference(line, field)){
+			let standardArray = helper.containsStandardField(line, field)
 			let tempArray = []
 			if(standardArray.length>0){
 				for(let i=0; i<standardArray.length; i++){
@@ -89,7 +77,7 @@ const checkStandardField = (line, field, object, fields) => {
 			}
 			//SOQL check
 			let tempMap = await checkStandardFieldSOQL(line, object, fields)
-			standardFieldsMap = joinMaps(standardFieldsMap, tempMap) 
+			standardFieldsMap = helper.joinMaps(standardFieldsMap, tempMap) 
 			resolve(standardFieldsMap)
 		}
 		resolve(null)
@@ -131,33 +119,33 @@ const getSpecificStandardFieldsInSOQL =  (parsedQuery, isInnerQuery, mainObject,
 				else if(parsedQuery.fields[i].type === 'FieldSubquery'){
 					let tempMap 
 					object = parsedQuery.fields[i].subquery.relationshipName
-					object = await getNameFromPluralName(object, url, token)
+					object = await helper.getNameFromPluralName(object, url, token)
 					tempMap = await getSpecificStandardFieldsInSOQL(parsedQuery.fields[i].subquery, true, object, fields)
-					soqlMap = joinMaps(soqlMap, tempMap) 
+					soqlMap = helper.joinMaps(soqlMap, tempMap) 
 				}
 				// FieldRelationship, we need to check the parents to map to the correct object
 				else if(parsedQuery.fields[i].type === 'FieldRelationship' && !parsedQuery.fields[i].field.endsWith('__c') && fields.includes(parsedQuery.fields[i].field.toLowerCase())){
 					object = parsedQuery.sObject != null ? parsedQuery.sObject : parsedQuery.relationshipName
 					//missing FieldRelationship in inner queries as name is different
 					if(isInnerQuery){
-						object = await getNameFromPluralName(object, url, token)
+						object = await helper.getNameFromPluralName(object, url, token)
 					}
-					let allObjFields = await getDescribe(object,url, token)
+					let allObjFields = await helper.getDescribe(object,url, token)
 					//we can go up more than 1 time, so we need to iterate all parents fields
 					if(parsedQuery.fields[i].relationships){
-						tempMap = await getParentObjectName(parsedQuery.fields[i], allObjFields)
-						soqlMap = joinMaps(soqlMap, tempMap)
+						tempMap = await helper.getParentObjectName(parsedQuery.fields[i], allObjFields)
+						soqlMap = helper.joinMaps(soqlMap, tempMap)
 					}	 
 				}
 			}
 			// check where clause
 			if(parsedQuery.where){
-				let tempMap = await getSpecificFieldsInWhereClause(parsedQuery, mainObject.toLowerCase(),fields);
-				soqlMap = joinMaps(soqlMap, tempMap)
+				let tempMap = await helper.getSpecificFieldsInWhereClause(parsedQuery, mainObject.toLowerCase(),fields);
+				soqlMap = helper.joinMaps(soqlMap, tempMap)
 			}
 			if(parsedQuery.orderBy){
-				let tempMap = await getSpecificFieldsInOrderByClause(parsedQuery, mainObject.toLowerCase(), fields);
-				soqlMap = joinMaps(soqlMap, tempMap)
+				let tempMap = await helper.getSpecificFieldsInOrderByClause(parsedQuery, mainObject.toLowerCase(), fields);
+				soqlMap = helper.joinMaps(soqlMap, tempMap)
 				
 			}
 		//}
