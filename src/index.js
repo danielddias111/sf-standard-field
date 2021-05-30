@@ -1,14 +1,34 @@
 const getStandardFields = require('../lib/getStandardFields');
 
 const options = {
-	fields: ['lead.industry']
+	fields: ['account.name']
 }
 
 const entryPoint = {
 	classId : '01p0900000HIpun',
-	token:'00D09000002VRMG!ARsAQCbg9j0mmJRe_NCqqx7pIovn5hlgAYpdr0AoBJiHS3w2qgXIxpGxoQWxX1NgE8lzIdoJo9dsdSfvhFKAhTO7SEY0xgDp',
+	token:'00D09000002VRMG!ARsAQIA8SY9gDMSQxA1CIMjcfU2ouqwgm5bhFBMaS5qOumwTrrl3qumTOXKjjL0mPzlg4sMy9SSTHvLPShBm3KVc3OfDasG7',
 	url:'https://easy-deploy-dev-ed.my.salesforce.com'
 }
 
-getStandardFields(entryPoint, options);
+const getClassStandardField = (entryPoint, options) => {
+	return new Promise(async(resolve, reject) => {
+		let returnMap
+		if(options){
+			returnMap = await getStandardFields(entryPoint, options);
+		}
+		else {
+			returnMap = await getStandardFields(entryPoint);
+		}
+		resolve(returnMap)
+	}) 
+	
+}
 
+getClassStandardField(entryPoint, options)
+.then(result => {
+	console.log(result)
+})
+
+module.exports = {
+	getClassStandardField
+}
