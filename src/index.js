@@ -1,12 +1,12 @@
 const getStandardFields = require('../lib/getStandardFields');
 
 const options = {
-	fields: ['account.name']
+	fields: ['test__c.id', 'account.industry', 'account.name', 'LEAD.FIRSTNAME', 'LEAD.industry']
 }
 
 const entryPoint = {
 	classId : '01p0900000HIpun',
-	token:'00D09000002VRMG!ARsAQIA8SY9gDMSQxA1CIMjcfU2ouqwgm5bhFBMaS5qOumwTrrl3qumTOXKjjL0mPzlg4sMy9SSTHvLPShBm3KVc3OfDasG7',
+	token:'00D09000002VRMG!ARsAQN7Az1vhs2r6q6PQmudHZAakLpV.pQsjuV4LYuji6h_AEYpQiNdSJEXnxiCU3BAOkOxJQVCEzbWI7URiIAV1EQ5Fonf8',
 	url:'https://easy-deploy-dev-ed.my.salesforce.com'
 }
 
