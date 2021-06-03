@@ -1,7 +1,7 @@
 const getStandardFields = require('../src/index');
 
 const options = {
-	fields: ['testPablo__c.Id']
+	fields: ['orderitem.id', 'opportunity.name']
 }
 
 const entryPoint = {
