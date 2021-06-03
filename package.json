@@ -1,13 +1,20 @@
 {
-  "name": "standard-field",
+  "name": "sf-standard-field-dependency",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "An easy way to check which standard fields are used in your apex code",
+  "main": "src/index.js",
   "scripts": {
     "start": "node examples/example.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Daniel Dias",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielddias111/sf-standard-field.git"
+  },
+  "keywords": [
+    "salesforce"
+  ],
+  "author": "Daniel Dias <diasdaniel111@pm.me>",
   "license": "ISC",
   "dependencies": {
     "node-fetch": "^2.6.1",
