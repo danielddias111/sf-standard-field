@@ -1,7 +1,7 @@
 const getStandardFields = require('../lib/getStandardFields');
 
 const options = {
-	fields: ['test__c.id', 'account.industry', 'account.name', 'LEAD.FIRSTNAME', 'LEAD.industry']
+	fields: ['testqqq__c.id', 'account.industry', 'account.name', 'LEAD.FIRSTNAME', 'LEAD.industry']
 }
 
 const entryPoint = {
