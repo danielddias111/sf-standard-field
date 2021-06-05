@@ -6,7 +6,7 @@ If the `options` array is empty or not passed it will return a `Map` with the ob
 If the `options` object is passed it returns a map of field => boolean eg `{ 'orderitem.id' => false, 'opportunity.name' => true }`
 
 ```Javascript
-const getStandardFields = require('../src/index');
+const {getStandardFields} = require('sf-standard-field-dependency')
 
 const options = {
 	fields: ['orderitem.id', 'opportunity.name']
@@ -25,4 +25,4 @@ async function runExample(){
     console.log(response);
 }
 
-runExample();```
+runExample();
