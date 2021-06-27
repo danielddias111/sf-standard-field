@@ -5,8 +5,8 @@ const options = {
 }
 
 const entryPoint = {
-	classId : '01p1j000006wwUd',
-	token:'00D1j0000004adH!AQsAQIQH8UnVmNPAT1LDPdwd1kmXT7MTaNEa.fziqy668fDYs8XoFnK9GpTQ16RdqRKJnON_d2vgzMRIY7z16HJhlESuMuO6',
+	classId : '01p6900000FIQLF',
+	token:'00D1j0000004adH!AQsAQG34Ny6bfYPmF4wREA4EYxB.2fteXloIrfZSBxjzsNv9S6LveyJwMznYwGbCEr8osxi439CrY7cbjh98A.hKLapaQOF3',
 	url:'https://claranet--billingv3.my.salesforce.com'
 }
 
