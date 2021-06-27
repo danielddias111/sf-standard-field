@@ -1,3 +1,3 @@
-const getStandardFields = require('../lib/getStandardFields');
+const getStandardFields = require('../lib/getStandardFields.js');
 
 module.exports = { getStandardFields }
