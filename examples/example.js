@@ -1,12 +1,12 @@
 const { getStandardFields }= require('../src/index.js');
 
 const options = {
-	fields: []
+	fields: ['SBQQ__Quote__c.name','account.id','Authorisation__c.id']
 }
 
 const entryPoint = {
-	classId : '01p6900000FIQLF',
-	token:'00D1j0000004adH!AQsAQG34Ny6bfYPmF4wREA4EYxB.2fteXloIrfZSBxjzsNv9S6LveyJwMznYwGbCEr8osxi439CrY7cbjh98A.hKLapaQOF3',
+	classId : '01p6900000FIQKV',
+	token:'00D1j0000004adH!AQsAQDVNXToJ_7I3IzqSnDP2RtC7V_NNQPIGDdHNfBgZd3kDJvZ5YuNkq2vbKGsXgjcf7GW0A_c9RBexVxHiaA7fsjfaadeN',
 	url:'https://claranet--billingv3.my.salesforce.com'
 }
 
