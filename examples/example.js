@@ -1,13 +1,13 @@
 const { getStandardFields }= require('../src/index.js');
 
 const options = {
-	fields: ['SBQQ__Quote__c.name','account.id','Authorisation__c.id']
+	fields: ['Field_to_Track__c.id']
 }
 
 const entryPoint = {
-	classId : '01p6900000FIQKV',
-	token:'00D1j0000004adH!AQsAQCDOROkLX5mtl8JIgRwPYqMBq6ZGLFQHWT732DssEzkfztko6zLhyZKEoJ9scdEPt.FfkYcipnSqgzFtvi0QdzLr4v0E',
-	url:'https://claranet--billingv3.my.salesforce.com'
+	classId : '01p09000000JkNsAAK',
+	token:'00D09000002VRMG!ARsAQLYvrK8YxCmG3EJ2DtyB_s5Ho5roLFtiuZN5uBaHvTw0etHRR55jbSonZ.Q31HP_2bGrSpkiN.DJScb9bHggVfsYMa9X',
+	url:'https://easy-deploy-dev-ed.my.salesforce.com'
 }
 
 async function runExample(){
