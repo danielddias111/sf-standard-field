@@ -1,7 +1,7 @@
 const { getStandardFields }= require('../src/index.js');
 
 const options = {
-	fields: ['Field_to_Track__c.name', 'Object_to_Track__c.name']
+	fields: ['Field_to_Track__c.name']
 }
 
 const entryPoint = {
