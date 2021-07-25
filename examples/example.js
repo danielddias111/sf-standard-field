@@ -1,16 +1,16 @@
 const { getStandardFields }= require('../src/index.js');
 
 const options = {
-	fields: ['Field_to_Track__c.name']
+	fields: ['Billing_Information__c.id']
 }
 
 const entryPoint = {
 	classId : '',
-	token:'00D09000002VRMG!ARsAQKhrW2y86Da2VqazV7sw_wYfpUUmupjZSiEvfaJFMu_fXZcSgJWYqfJqTduFf1TT21SBhv6AJ40P6e6eb5FvDqYjJ_oG',
-	url:'https://easy-deploy-dev-ed.my.salesforce.com'
+	token:'00D1j0000004adH!ADWbfAqvh4UZUyNCqkCOgmmv8pKeLHBi5pbN3Quosig75W8Rw5DY1a5B3Eg2kkHhOV4Q5aUCMKAWY9afj5e1y2yO456w',
+	url:'https://claranet--billingv3.my.salesforce.com'
 }
 
-let classes = ['01p0900000LfnXDAAZ','01p09000000JkNsAAK']
+let classes = ['01p1j000006wwUd','01p6900000FIQLF']
 
 async function runExample(){
 		for(let i=0; i< classes.length; i++){
