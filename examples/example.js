@@ -1,12 +1,12 @@
 const { getStandardFields }= require('../src/index.js');
 
 const options = {
-	fields: ['Field_to_Track__c.id', 'Object_to_Track__c.name','Object_to_Track__c.id','user.name','user.id']
+	fields: ['Field_to_Track__c.name', 'Object_to_Track__c.name']
 }
 
 const entryPoint = {
 	classId : '',
-	token:'00D09000002VRMG!ARsAQLYvrK8YxCmG3EJ2DtyB_s5Ho5roLFtiuZN5uBaHvTw0etHRR55jbSonZ.Q31HP_2bGrSpkiN.DJScb9bHggVfsYMa9X',
+	token:'00D09000002VRMG!ARsAQKhrW2y86Da2VqazV7sw_wYfpUUmupjZSiEvfaJFMu_fXZcSgJWYqfJqTduFf1TT21SBhv6AJ40P6e6eb5FvDqYjJ_oG',
 	url:'https://easy-deploy-dev-ed.my.salesforce.com'
 }
 
