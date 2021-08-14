@@ -1,16 +1,16 @@
 const { getStandardFields }= require('../src/index.js');
 
 const options = {
-	fields: ['Billing_Information__c.id']
+	fields: ['SBQQ__BundleRoot__c.Id']
 }
 
 const entryPoint = {
 	classId : '',
-	token:'00D1j0000004adH!ADWbfAqvh4UZUyNCqkCOgmmv8pKeLHBi5pbN3Quosig75W8Rw5DY1a5B3Eg2kkHhOV4Q5aUCMKAWY9afj5e1y2yO456w',
+	token:'00D1j0000004adH!AQsAQDmLF_VRYiRsbrpKagnsJAn19WnKYOU2PwcBsKaa3l9H4e.pXdDalBw1H6PAYJ48h7m7RFJg2TtcEaFl_LVcFWcEta9a',
 	url:'https://claranet--billingv3.my.salesforce.com'
 }
 
-let classes = ['01p1j000006wwUd','01p6900000FIQLF']
+let classes = ['01p1j000006wwUeAAI']
 
 async function runExample(){
 		for(let i=0; i< classes.length; i++){
