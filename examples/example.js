@@ -6,7 +6,7 @@ const options = {
 
 const entryPoint = {
 	classId : '',
-	token:'00D09000007z6rW!ARQAQHcV8Yl11wdPHkZTql19n8zRmiOSayCr0sjS.m3bgzLrHmDr1sK4SeDjiyg28r8ygx_afpWxJ1O3IdHHYYOwkmXQ1.',
+	token:'00D09000007z6rW!ARQAQHcV8Yl11wdPHkZTql19n8zRmiOSayCr0sjS.m3bgzLrHmDr1sK4SeDjiyg28r8ygx_afpWxJ1O3IdHHYYOwkmXQ1.V3',
 	url:'https://dependencypt-dev-ed.my.salesforce.com'
 }
 
