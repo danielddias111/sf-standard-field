@@ -1,16 +1,16 @@
 const { getStandardFields }= require('../src/index.js');
 
 const options = {
-	fields: ['SBQQ__BundleRoot__c.Id']
+	fields: ['Account.Industry','Account.name','Lead.Industry']
 }
 
 const entryPoint = {
 	classId : '',
-	token:'00D1j0000004adH!AQsAQDmLF_VRYiRsbrpKagnsJAn19WnKYOU2PwcBsKaa3l9H4e.pXdDalBw1H6PAYJ48h7m7RFJg2TtcEaFl_LVcFWcEta9a',
-	url:'https://claranet--billingv3.my.salesforce.com'
+	token:'00D09000007z6rW!ARQAQHcV8Yl11wdPHkZTql19n8zRmiOSayCr0sjS.m3bgzLrHmDr1sK4SeDjiyg28r8ygx_afpWxJ1O3IdHHYYOwkmXQ1.',
+	url:'https://dependencypt-dev-ed.my.salesforce.com'
 }
 
-let classes = ['01p1j000006wwUeAAI']
+let classes = ['01p0900000O1eD8AAJ','01p0900000O1eDDAAZ','01p0900000O1eDIAAZ','01p0900000O1eDNAAZ','01p0900000O1eQPAAZ','01p0900000O1eQUAAZ','01p0900000O1eI4AAJ','01p0900000O1ehAAAR','01p0900000O1ehFAAR']
 
 async function runExample(){
 		for(let i=0; i< classes.length; i++){
