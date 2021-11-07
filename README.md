@@ -1,6 +1,6 @@
 This library allows to check which standard fields are used in your apex code.
 
-You need to pass an `entryPoint` with your class id, token and url and an `options` object with a `fields` array with the object name and field name. 
+You need to pass an `entryPoint` with your token, url, SymbolTable and Class Body (You are able to fetch SymbolTable and Body calling `https://login.salesforce.com/services/data/v52.0/tooling/sobjects/ApexClass/classID`). And an `options` object with a `fields` array with the object name and field name. 
 
 The response returns a map of field => boolean eg `{ 'orderitem.id' => false, 'opportunity.name' => true }`
 
