@@ -2,7 +2,7 @@
   "name": "sf-standard-field-dependency",
   "version": "2.0.0",
   "description": "An easy way to check which standard fields are used in your apex code",
-  "main": "src/index.js",
+  "main": "examples/example.js",
   "scripts": {
     "start": "node examples/example.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -17,6 +17,7 @@
   "author": "Daniel Dias <diasdaniel111@pm.me>",
   "license": "ISC",
   "dependencies": {
+    "node-cache": "^5.1.2",
     "node-fetch": "^2.6.1",
     "soql-parser-js": "^4.2.1"
   }
