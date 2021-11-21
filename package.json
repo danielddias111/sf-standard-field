@@ -1,6 +1,6 @@
 {
   "name": "sf-standard-field-dependency",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "An easy way to check which standard fields are used in your apex code",
   "main": "examples/example.js",
   "scripts": {
