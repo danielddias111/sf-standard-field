@@ -1,9 +1,9 @@
 const fetch 								= require('node-fetch');
 const { getStandardFields }	= require('../src/index.js');
 
-const options = {
+/*const options = {
 	fields: ['Account.Industry','Account.name','lead.industry']
-}
+}*/
 const token = '00D09000007z6rW!ARQAQAalPG.MJG7cOHS.gUPYxFDk9OKEkdvgkwK3G1KWee2vSTTYekcAPtIlAzoRiR3ILmC2CtuTRspS8yp3.0i45Wqyyz_s'
 const url = 'https://dependencypt-dev-ed.my.salesforce.com'
 /*
@@ -43,10 +43,10 @@ async function runExamples(){
 				Body
 			}
 			//console.log(`Checking industry field in class:\n${json.Name} - ${json.Id} `)
-			let response = await getStandardFields(entryPoint, options);
+			let response = await getStandardFields(entryPoint);
 			
 			if(validateResponse(json.FullName, response)){
-				//console.log(response)
+				console.log(response)
 				
 				console.log(`-${json.FullName} => All Good`)
 			}
