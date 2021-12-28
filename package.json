@@ -2,9 +2,9 @@
   "name": "sf-standard-field-dependency",
   "version": "3.0.2",
   "description": "An easy way to check which standard fields are used in your apex code",
-  "main": "src/index.js",
+  "main": "examples/example.js",
   "scripts": {
-    "start": "node example/examples.js",
+    "start": "node examples/example.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
