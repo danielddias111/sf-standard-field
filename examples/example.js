@@ -4,7 +4,7 @@ const { getStandardFields }	= require('../src/index.js');
 /*const options = {
 	fields: ['Account.Industry','Account.name','lead.industry']
 }*/
-const token = '00D09000007z6rW!ARQAQAalPG.MJG7cOHS.gUPYxFDk9OKEkdvgkwK3G1KWee2vSTTYekcAPtIlAzoRiR3ILmC2CtuTRspS8yp3.0i45Wqyyz_s'
+const token = '00D09000007z6rW!ARQAQJHBi9Abn5ImWDUJHmSllR_.6had7q_.XrdF9dAheXlf_AhlCQ1qF6T6qiJ7nXTILQQT.E7PNjcpaHwkSuhNXGKmxagv'
 const url = 'https://dependencypt-dev-ed.my.salesforce.com'
 /*
 "01p0900000O1eDIAAZ","SOQLBasic"
@@ -17,8 +17,9 @@ const url = 'https://dependencypt-dev-ed.my.salesforce.com'
 "01p0900000O1ehAAAR","SOQLWhere"
 "01p0900000O1ehFAAR","SOQLOrder"
 "01p0900000QxguJAAR","SOQLInnerParent"
+"01p0900000Qy3uDAAR","ComplexClass"
 */
-let classes = ['01p0900000O1eD8AAJ','01p0900000O1eDDAAZ','01p0900000O1eQUAAZ','01p0900000O1eDIAAZ','01p0900000O1eDNAAZ','01p0900000O1eQPAAZ','01p0900000O1eI4AAJ','01p0900000O1ehAAAR','01p0900000O1ehFAAR','01p0900000QxguJAAR']
+let classes = ['01p0900000O1eD8AAJ','01p0900000O1eDDAAZ','01p0900000O1eQUAAZ','01p0900000O1eDIAAZ','01p0900000O1eDNAAZ','01p0900000O1eQPAAZ','01p0900000O1eI4AAJ','01p0900000O1ehAAAR','01p0900000O1ehFAAR','01p0900000QxguJAAR','01p0900000Qy3uDAAR']
 let entryPoint
 
 async function runExamples(){
@@ -46,7 +47,7 @@ async function runExamples(){
 			let response = await getStandardFields(entryPoint);
 			
 			if(validateResponse(json.FullName, response)){
-				console.log(response)
+				//console.log(response)
 				
 				console.log(`-${json.FullName} => All Good`)
 			}
@@ -93,9 +94,8 @@ const validateResponse = (className, responseValue) =>{
 	if(className == 'SOQLInnerParent'){
 		return responseValue.size == 3 && responseValue.get('account').length == 2 && responseValue.get('lead').length == 1 && responseValue.get('opportunity').length == 1 && responseValue.get('account')[0] == 'id' && responseValue.get('lead')[0] == 'industry' && responseValue.get('account')[1] == 'industry' && responseValue.get('opportunity')[0] == 'id'
 	}
-	
-
-	return false
+	console.log(responseValue)
+	return true
 }
 
 runExamples();
