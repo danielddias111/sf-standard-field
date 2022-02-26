@@ -4,7 +4,7 @@ const { getStandardFields }	= require('../src/index.js');
 /*const options = {
 	fields: ['Account.Industry','Account.name','lead.industry']
 }*/
-const token = '00D09000007z6rW!ARQAQJHBi9Abn5ImWDUJHmSllR_.6had7q_XrdF9dAheXlf_AhlCQ1qF6T6qiJ7nXTILQQT.E7PNjcpaHwkSuhNXGKmxagv'
+const token = '00D09000007z6rW!ARQAQDA17Ioy_8FK3ngzfOFq2wKkV0YxVyPFuU9n34HsfXF9ck67IgDfNRuKB4HN1rfofweL7KFlMv2EEEUMu1lNp5SMdPkt'
 const url = 'https://dependencypt-dev-ed.my.salesforce.com'
 /*
 "01p0900000O1eDIAAZ","SOQLBasic"
