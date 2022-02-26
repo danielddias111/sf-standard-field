@@ -4,7 +4,7 @@ const { getStandardFields }	= require('../src/index.js');
 /*const options = {
 	fields: ['Account.Industry','Account.name','lead.industry']
 }*/
-const token = '00D09000007z6rW!ARQAQDA17Ioy_8FK3ngzfOFq2wKkV0YxVyPFuU9n34HsfXF9ck67IgDfNRuKB4HN1rfofweL7KFlMv2EEEUMu1lNp5SMdPkt'
+const token = '00D09000007z6rW!ARQAQDA17Ioy_8FK3ngzfOFq2wKkV0YxVyPFuU9n34HsfXF9ck67IgDfNRuKB4HN1rfofweL7KFlMv2EEEU'
 const url = 'https://dependencypt-dev-ed.my.salesforce.com'
 /*
 "01p0900000O1eDIAAZ","SOQLBasic"
@@ -47,7 +47,7 @@ async function runExamples(){
 			let response = await getStandardFields(entryPoint);
 			
 			if(validateResponse(json.FullName, response)){
-				//console.log(response)
+				console.log(response)
 				
 				console.log(`-${json.FullName} => All Good`)
 			}
